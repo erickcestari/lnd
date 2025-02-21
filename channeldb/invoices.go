@@ -1214,7 +1214,7 @@ func ampRecordSize(a *invpkg.AMPInvoiceState) func() uint64 {
 // Note: this function is in use for a migration. Before making changes that
 // would modify the on disk format, make a copy of the original code and store
 // it with the migration.
-func serializeInvoice(w io.Writer, i *invpkg.Invoice) error {
+func SerializeInvoice(w io.Writer, i *invpkg.Invoice) error {
 	creationDateBytes, err := i.CreationDate.MarshalBinary()
 	if err != nil {
 		return err
