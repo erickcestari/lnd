@@ -1536,7 +1536,7 @@ func fetchInvoice(invoiceNum []byte, invoices kvdb.RBucket,
 
 	invoiceReader := bytes.NewReader(invoiceBytes)
 
-	invoice, err := deserializeInvoice(invoiceReader)
+	invoice, err := DeserializeInvoice(invoiceReader)
 	if err != nil {
 		return invpkg.Invoice{}, err
 	}
@@ -1632,7 +1632,7 @@ func fetchInvoiceStateAMP(invoiceNum []byte,
 	return ampState, nil
 }
 
-func deserializeInvoice(r io.Reader) (invpkg.Invoice, error) {
+func DeserializeInvoice(r io.Reader) (invpkg.Invoice, error) {
 	var (
 		preimageBytes [32]byte
 		value         uint64
