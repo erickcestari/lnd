@@ -1029,7 +1029,7 @@ func (k *kvInvoiceUpdater) updateAMPInvoices() error {
 // serializeAndStoreInvoice is a helper function used to store invoices.
 func (k *kvInvoiceUpdater) serializeAndStoreInvoice() error {
 	var buf bytes.Buffer
-	if err := serializeInvoice(&buf, k.invoice); err != nil {
+	if err := SerializeInvoice(&buf, k.invoice); err != nil {
 		return err
 	}
 
@@ -1176,7 +1176,7 @@ func putInvoice(invoices, invoiceIndex, payAddrIndex, addIndex kvdb.RwBucket,
 
 	// Finally, serialize the invoice itself to be written to the disk.
 	var buf bytes.Buffer
-	if err := serializeInvoice(&buf, i); err != nil {
+	if err := SerializeInvoice(&buf, i); err != nil {
 		return 0, err
 	}
 
