@@ -1473,7 +1473,7 @@ func TestNewRoute(t *testing.T) {
 		// overwrite the final hop's feature vector in the graph.
 		destFeatures *lnwire.FeatureVector
 
-		paymentAddr fn.Option[[32]byte]
+		paymentAddr *[32]byte
 
 		// metadata is the payment metadata to attach to the route.
 		metadata []byte
@@ -1552,7 +1552,7 @@ func TestNewRoute(t *testing.T) {
 			// a fee to receive the payment.
 			name:          "two hop single shot mpp",
 			destFeatures:  tlvPayAddrFeatures,
-			paymentAddr:   fn.Some(testPaymentAddr),
+			paymentAddr:   &testPaymentAddr,
 			paymentAmount: 100000,
 			hops: []*models.CachedEdgePolicy{
 				createHop(0, 1000, 1000000, 10),
@@ -2017,7 +2017,7 @@ func runDestPaymentAddr(t *testing.T, useCache bool) {
 	luoji := ctx.keyFromAlias("luoji")
 
 	// Add payment address w/o any invoice features.
-	ctx.restrictParams.PaymentAddr = fn.Some([32]byte{1})
+	ctx.restrictParams.PaymentAddr = &[32]byte{1}
 
 	// Add empty destination features. This should cause us to fail, since
 	// this overrides anything in the graph.
@@ -3061,7 +3061,7 @@ func runInboundFees(t *testing.T, useCache bool) {
 	ctx := newPathFindingTestContext(t, useCache, testChannels, "a")
 
 	payAddr := [32]byte{1}
-	ctx.restrictParams.PaymentAddr = fn.Some(payAddr)
+	ctx.restrictParams.PaymentAddr = &payAddr
 	ctx.restrictParams.DestFeatures = tlvPayAddrFeatures
 
 	const (
@@ -3080,7 +3080,7 @@ func runInboundFees(t *testing.T, useCache bool) {
 			amt:         paymentAmt,
 			cltvDelta:   finalHopCLTV,
 			records:     nil,
-			paymentAddr: fn.Some(payAddr),
+			paymentAddr: &payAddr,
 			totalAmt:    paymentAmt,
 		},
 		nil,
@@ -3587,7 +3587,7 @@ func TestLastHopPayloadSize(t *testing.T) {
 		{
 			name: "Non blinded final hop",
 			restrictions: &RestrictParams{
-				PaymentAddr:       fn.Some(*paymentAddr),
+				PaymentAddr:       paymentAddr,
 				DestCustomRecords: customRecords,
 				Metadata:          metadata,
 				Amp:               ampOptions,
@@ -3621,10 +3621,12 @@ func TestLastHopPayloadSize(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			mpp := fn.MapOptionZ(tc.restrictions.PaymentAddr,
-				func(addr [32]byte) *record.MPP {
-					return record.NewMPP(tc.amount, addr)
-				})
+			var mpp *record.MPP
+			if tc.restrictions.PaymentAddr != nil {
+				mpp = record.NewMPP(
+					tc.amount, *tc.restrictions.PaymentAddr,
+				)
+			}
 
 			// In case it's an AMP payment we use the max AMP record
 			// size to estimate the final hop size.

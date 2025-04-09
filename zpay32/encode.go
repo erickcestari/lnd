@@ -9,7 +9,6 @@ import (
 	"github.com/btcsuite/btcd/btcutil/bech32"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
-	"github.com/lightningnetwork/lnd/fn/v2"
 	"github.com/lightningnetwork/lnd/lnwire"
 )
 
@@ -303,11 +302,13 @@ func writeTaggedFields(bufferBase32 *bytes.Buffer, invoice *Invoice) error {
 		}
 	}
 
-	err := fn.MapOptionZ(invoice.PaymentAddr, func(addr [32]byte) error {
-		return writeBytes32(bufferBase32, fieldTypeS, addr)
-	})
-	if err != nil {
-		return err
+	if invoice.PaymentAddr != nil {
+		err := writeBytes32(
+			bufferBase32, fieldTypeS, *invoice.PaymentAddr,
+		)
+		if err != nil {
+			return err
+		}
 	}
 
 	if invoice.Features.SerializeSize32() > 0 {

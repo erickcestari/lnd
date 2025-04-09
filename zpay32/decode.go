@@ -14,7 +14,6 @@ import (
 	"github.com/btcsuite/btcd/btcutil/bech32"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
-	"github.com/lightningnetwork/lnd/fn/v2"
 	"github.com/lightningnetwork/lnd/lnwire"
 )
 
@@ -279,7 +278,7 @@ func parseTaggedFields(invoice *Invoice, fields []byte, net *chaincfg.Params) er
 			invoice.PaymentHash, err = parse32Bytes(base32Data)
 
 		case fieldTypeS:
-			if invoice.PaymentAddr.IsSome() {
+			if invoice.PaymentAddr != nil {
 				// We skip the field if we have already seen a
 				// supported one.
 				continue
@@ -290,7 +289,7 @@ func parseTaggedFields(invoice *Invoice, fields []byte, net *chaincfg.Params) er
 				return err
 			}
 			if addr != nil {
-				invoice.PaymentAddr = fn.Some(*addr)
+				invoice.PaymentAddr = addr
 			}
 
 		case fieldTypeD:

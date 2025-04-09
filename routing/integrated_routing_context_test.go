@@ -189,7 +189,7 @@ func (c *integratedRoutingContext) testPayment(maxParts uint32,
 		FinalCLTVDelta: uint16(c.finalExpiry),
 		FeeLimit:       lnwire.MaxMilliSatoshi,
 		Target:         c.target.pubkey,
-		PaymentAddr:    fn.Some(paymentAddr),
+		PaymentAddr:    &paymentAddr,
 		DestFeatures: lnwire.NewFeatureVector(
 			baseFeatureBits, lnwire.Features,
 		),

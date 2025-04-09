@@ -553,14 +553,12 @@ func AddInvoice(ctx context.Context, cfg *AddInvoiceConfig,
 				path,
 			))
 		}
-	} else {
-		options = append(options, zpay32.PaymentAddr(paymentAddr))
 	}
 
 	// Create and encode the payment request as a bech32 (zpay32) string.
 	creationDate := time.Now()
 	payReq, err := zpay32.NewInvoice(
-		cfg.ChainParams, paymentHash, creationDate, options...,
+		cfg.ChainParams, paymentHash, creationDate, paymentAddr, options...,
 	)
 	if err != nil {
 		return nil, nil, err

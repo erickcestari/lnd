@@ -795,7 +795,7 @@ type LightningPayment struct {
 	// PaymentAddr is the payment address specified by the receiver. This
 	// field should be a random 32-byte nonce presented in the receiver's
 	// invoice to prevent probing of the destination.
-	PaymentAddr fn.Option[[32]byte]
+	PaymentAddr *[32]byte
 
 	// PaymentRequest is an optional payment request that this payment is
 	// attempting to complete.
@@ -996,10 +996,9 @@ func (r *ChannelRouter) PreparePayment(payment *LightningPayment) (
 	switch {
 	// If this is an AMP payment, we'll use the AMP shard tracker.
 	case payment.amp != nil:
-		addr := payment.PaymentAddr.UnwrapOr([32]byte{})
 		shardTracker = amp.NewShardTracker(
-			payment.amp.RootShare, payment.amp.SetID, addr,
-			payment.Amount,
+			payment.amp.RootShare, payment.amp.SetID,
+			*payment.PaymentAddr, payment.Amount,
 		)
 
 	// Otherwise we'll use the simple tracker that will map each attempt to
@@ -1311,7 +1310,7 @@ func (e ErrNoChannel) Error() string {
 // outgoing channel, use the outgoingChan parameter.
 func (r *ChannelRouter) BuildRoute(amt fn.Option[lnwire.MilliSatoshi],
 	hops []route.Vertex, outgoingChan *uint64, finalCltvDelta int32,
-	payAddr fn.Option[[32]byte], firstHopBlob fn.Option[[]byte]) (
+	payAddr *[32]byte, firstHopBlob fn.Option[[]byte]) (
 	*route.Route, error) {
 
 	log.Tracef("BuildRoute called: hopsCount=%v, amt=%v", len(hops), amt)

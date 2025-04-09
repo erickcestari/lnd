@@ -97,10 +97,10 @@ func newTestInvoice(t *testing.T, preimage lntypes.Preimage,
 		testNetParams,
 		preimage.Hash(),
 		timestamp,
+		payAddr,
 		zpay32.Amount(testInvoiceAmount),
 		zpay32.Description(testInvoiceDescription),
 		zpay32.Expiry(expiry),
-		zpay32.PaymentAddr(payAddr),
 	)
 	require.NoError(t, err, "Error while creating new invoice")
 

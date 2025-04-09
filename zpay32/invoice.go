@@ -8,7 +8,6 @@ import (
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
-	"github.com/lightningnetwork/lnd/fn/v2"
 	"github.com/lightningnetwork/lnd/lnwire"
 )
 
@@ -137,7 +136,7 @@ type Invoice struct {
 
 	// PaymentAddr is the payment address to be used by payments to prevent
 	// probing of the destination.
-	PaymentAddr fn.Option[[32]byte]
+	PaymentAddr *[32]byte
 
 	// Destination is the public key of the target node. This will always
 	// be set after decoding, and can optionally be set before encoding to
@@ -302,7 +301,7 @@ func Features(features *lnwire.FeatureVector) func(*Invoice) {
 // the desired payment address that is advertised on the invoice.
 func PaymentAddr(addr [32]byte) func(*Invoice) {
 	return func(i *Invoice) {
-		i.PaymentAddr = fn.Some(addr)
+		i.PaymentAddr = &addr
 	}
 }
 
@@ -320,12 +319,13 @@ func Metadata(metadata []byte) func(*Invoice) {
 // NOTE: Either Description  or DescriptionHash must be provided for the Invoice
 // to be considered valid.
 func NewInvoice(net *chaincfg.Params, paymentHash [32]byte,
-	timestamp time.Time, options ...func(*Invoice)) (*Invoice, error) {
+	timestamp time.Time, paymentAddr [32]byte, options ...func(*Invoice)) (*Invoice, error) {
 
 	invoice := &Invoice{
 		Net:         net,
 		PaymentHash: &paymentHash,
 		Timestamp:   timestamp,
+		PaymentAddr: &paymentAddr,
 	}
 
 	for _, option := range options {
@@ -379,6 +379,11 @@ func validateInvoice(invoice *Invoice) error {
 	// The invoice must contain a payment hash.
 	if invoice.PaymentHash == nil {
 		return fmt.Errorf("no payment hash found")
+	}
+
+	// The invoice must contain a payment address (payment secret).
+	if invoice.PaymentAddr == nil {
+		return fmt.Errorf("no payment address found")
 	}
 
 	if len(invoice.RouteHints) != 0 &&

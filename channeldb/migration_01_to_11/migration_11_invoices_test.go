@@ -164,7 +164,7 @@ func getPayReq(net *bitcoinCfg.Params) (string, error) {
 	}
 
 	payReq, err := zpay32.NewInvoice(
-		net, [32]byte{}, time.Unix(1, 0), options...,
+		net, [32]byte{}, time.Unix(1, 0), [32]byte{}, options...,
 	)
 	if err != nil {
 		return "", err
