@@ -88,7 +88,7 @@ const (
 
 	// DefaultInvoiceExpiry is the default expiry duration from the creation
 	// timestamp if expiry is set to zero.
-	DefaultInvoiceExpiry = time.Hour
+	DefaultInvoiceExpiry = 3600
 )
 
 var (
@@ -178,7 +178,7 @@ type Invoice struct {
 	// This field is unexported and can be read by the Expiry() method. This
 	// method makes sure the default expiry time is returned in case the
 	// field is not set.
-	expiry *time.Duration
+	expiry *uint64
 
 	// FallbackAddr is an on-chain address that can be used for payment in
 	// case the Lightning payment fails.
@@ -257,7 +257,7 @@ func DescriptionHash(descriptionHash [32]byte) func(*Invoice) {
 // Expiry is a functional option that allows callers of NewInvoice to set the
 // expiry of the created Invoice. If not set, a default expiry of 60 min will
 // be implied.
-func Expiry(expiry time.Duration) func(*Invoice) {
+func Expiry(expiry uint64) func(*Invoice) {
 	return func(i *Invoice) {
 		i.expiry = &expiry
 	}
@@ -348,7 +348,7 @@ func NewInvoice(net *chaincfg.Params, paymentHash [32]byte,
 
 // Expiry returns the expiry time for this invoice. If expiry time is not set
 // explicitly, the default 3600 second expiry will be returned.
-func (invoice *Invoice) Expiry() time.Duration {
+func (invoice *Invoice) Expiry() uint64 {
 	if invoice.expiry != nil {
 		return *invoice.expiry
 	}

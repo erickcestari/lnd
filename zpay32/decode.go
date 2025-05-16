@@ -3,6 +3,7 @@ package zpay32
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
@@ -152,6 +153,8 @@ func Decode(invoice string, net *chaincfg.Params, opts ...DecodeOption) (
 
 	// We expect the signature to be over the single SHA-256 hash of that
 	// data.
+	print("bytes hashed: ")
+	println(hex.EncodeToString(toSign))
 	hash := chainhash.HashB(toSign)
 
 	// If the destination pubkey was provided as a tagged field, use that
@@ -168,10 +171,26 @@ func Decode(invoice string, net *chaincfg.Params, opts ...DecodeOption) (
 	} else {
 		headerByte := recoveryID + 27 + 4
 		compactSign := append([]byte{headerByte}, sig.RawBytes()...)
+		signature := sig.RawBytes()
+		print("Signature: ")
+		println(hex.EncodeToString(sig.RawBytes()))
+		print("Hash: ")
+		println(hex.EncodeToString(hash))
 		pubkey, _, err := ecdsa.RecoverCompact(compactSign, hash)
 		if err != nil {
 			return nil, err
 		}
+
+		for i, j := 0, len(signature)-1; i < j; i, j = i+1, j-1 {
+			signature[i], signature[j] = signature[j], signature[i]
+		}
+
+		// Encode back to hex for printing
+		reversedHexString := hex.EncodeToString(signature)
+		println("Signature Reversed: ")
+		println(reversedHexString)
+		println("pubkey")
+		println(hex.EncodeToString(pubkey.SerializeCompressed()))
 		decodedInvoice.Destination = pubkey
 	}
 
@@ -475,15 +494,13 @@ func parseDestination(data []byte) (*btcec.PublicKey, error) {
 }
 
 // parseExpiry converts the data (encoded in base32) into the expiry time.
-func parseExpiry(data []byte) (*time.Duration, error) {
+func parseExpiry(data []byte) (*uint64, error) {
 	expiry, err := base32ToUint64(data)
 	if err != nil {
 		return nil, err
 	}
 
-	duration := time.Duration(expiry) * time.Second
-
-	return &duration, nil
+	return &expiry, nil
 }
 
 // parseMinFinalCLTVExpiry converts the data (encoded in base32) into a uint64

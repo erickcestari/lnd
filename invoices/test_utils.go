@@ -80,12 +80,12 @@ var (
 )
 
 func newTestInvoice(t *testing.T, preimage lntypes.Preimage,
-	timestamp time.Time, expiry time.Duration) *Invoice {
+	timestamp time.Time, expiry uint64) *Invoice {
 
 	t.Helper()
 
 	if expiry == 0 {
-		expiry = time.Hour
+		expiry = zpay32.DefaultInvoiceExpiry
 	}
 
 	var payAddr [32]byte
@@ -113,7 +113,7 @@ func newTestInvoice(t *testing.T, preimage lntypes.Preimage,
 			PaymentPreimage: &preimage,
 			PaymentAddr:     payAddr,
 			Value:           testInvoiceAmount,
-			Expiry:          expiry,
+			Expiry:          time.Duration(expiry) * time.Second,
 			Features:        testFeatures,
 		},
 		PaymentRequest: []byte(paymentRequest),
@@ -146,9 +146,9 @@ func generateInvoiceExpiryTestData(
 		var preimage lntypes.Preimage
 		binary.BigEndian.PutUint32(preimage[:4], uint32(offset+i))
 		duration := (i + offset) % 24
-		expiry := time.Duration(duration) * time.Hour
+		expiry := duration * zpay32.DefaultInvoiceExpiry
 		invoice := newTestInvoice(
-			t, preimage, expiredCreationDate, expiry,
+			t, preimage, expiredCreationDate, uint64(expiry),
 		)
 		testData.expiredInvoices[preimage.Hash()] = invoice
 	}
@@ -157,8 +157,8 @@ func generateInvoiceExpiryTestData(
 		var preimage lntypes.Preimage
 		binary.BigEndian.PutUint32(preimage[4:], uint32(offset+i))
 		duration := (i + offset) % 24
-		expiry := time.Duration(duration) * time.Hour
-		invoice := newTestInvoice(t, preimage, now, expiry)
+		expiry := duration * zpay32.DefaultInvoiceExpiry
+		invoice := newTestInvoice(t, preimage, now, uint64(expiry))
 		testData.pendingInvoices[preimage.Hash()] = invoice
 	}
 
@@ -210,7 +210,7 @@ func (h *hodlExpiryTest) assertCanceled(t *testing.T, expected lntypes.Hash) {
 // setupHodlExpiry creates a hodl invoice in our expiry watcher and runs an
 // arbitrary update function which advances the invoices's state.
 func setupHodlExpiry(t *testing.T, creationDate time.Time,
-	expiry time.Duration, heightDelta uint32,
+	expiry uint64, heightDelta uint32,
 	startState ContractState,
 	startHtlcs []*InvoiceHTLC) *hodlExpiryTest {
 

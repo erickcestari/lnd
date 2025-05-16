@@ -190,8 +190,7 @@ func writeTaggedFields(bufferBase32 *bytes.Buffer, invoice *Invoice) error {
 	}
 
 	if invoice.expiry != nil {
-		seconds := invoice.expiry.Seconds()
-		expiry := uint64ToBase32(uint64(seconds))
+		expiry := uint64ToBase32(*invoice.expiry)
 		err := writeTaggedField(bufferBase32, fieldTypeX, expiry)
 		if err != nil {
 			return err
