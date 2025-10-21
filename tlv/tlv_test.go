@@ -204,6 +204,31 @@ var tlvDecodingFailureTests = []struct {
 		expErr: io.ErrUnexpectedEOF,
 	},
 	{
+		name:   "unknown even type",
+		bytes:  []byte{0x12, 0x00},
+		expErr: tlv.ErrUnknownRequiredType,
+	},
+	{
+		name:   "unknown even type",
+		bytes:  []byte{0xfd, 0x01, 0x02, 0x00},
+		expErr: tlv.ErrUnknownRequiredType,
+	},
+	{
+		name:   "unknown even type",
+		bytes:  []byte{0xfe, 0x01, 0x00, 0x00, 0x00, 0x02, 0x00},
+		expErr: tlv.ErrUnknownRequiredType,
+	},
+	{
+		name:   "unknown even type",
+		bytes:  []byte{0xff, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00},
+		expErr: tlv.ErrUnknownRequiredType,
+	},
+	{
+		name:   "unknown even type with data",
+		bytes:  []byte{0x0a, 0x04, 0x01, 0x02, 0x03, 0x04},
+		expErr: tlv.ErrUnknownRequiredType,
+	},
+	{
 		name:   "greater than encoding length for n1's amt",
 		bytes:  []byte{0x01, 0x09, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
 		expErr: tlv.NewTypeForDecodingErr(new(uint64), "uint64", 9, 8),

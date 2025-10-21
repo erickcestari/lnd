@@ -21,6 +21,11 @@ var ErrStreamNotCanonical = errors.New("tlv stream is not canonical")
 // long to parse.
 var ErrRecordTooLarge = errors.New("record is too large")
 
+// ErrUnknownRequiredType is returned when an unknown even TLV type is
+// encountered, which indicates a required field that the decoder doesn't
+// understand.
+var ErrUnknownRequiredType = errors.New("unknown required TLV type")
+
 // Stream defines a TLV stream that can be used for encoding or decoding a set
 // of TLV Records.
 type Stream struct {
@@ -255,9 +260,15 @@ func (s *Stream) decode(r io.Reader, parsedTypes TypeMap, p2p bool) (TypeMap,
 				parsedTypes[typ] = nil
 			}
 
-		// Otherwise, the record type is unknown and is odd, discard the
-		// number of bytes specified by length.
+		// Otherwise, the record type is unknown.
 		default:
+			// If the type is even, we must fail to parse the stream
+			// per BOLT spec.
+			if typ%2 == 0 {
+				return nil, ErrUnknownRequiredType
+			}
+
+			// The type is odd, so we can safely discard it.
 			// If the caller provided an initialized TypeMap, record
 			// the encoded bytes.
 			var b *bytes.Buffer
