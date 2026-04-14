@@ -3390,24 +3390,26 @@ func (s *server) createNewHiddenService(ctx context.Context) error {
 	return nil
 }
 
-// findChannel finds a channel given a public key and ChannelID. It is an
-// optimization that is quicker than seeking for a channel given only the
-// ChannelID.
-func (s *server) findChannel(node *btcec.PublicKey, chanID lnwire.ChannelID) (
-	*channeldb.OpenChannel, error) {
+// findChannel finds a channel given a public key and ChannelID. It uses
+// FetchChannelByID to look up the channel directly by its ID rather than
+// deserializing all open channels for the peer, then verifies that the
+// channel belongs to the expected node.
+func (s *server) findChannel(node *btcec.PublicKey,
+	chanID lnwire.ChannelID) (*channeldb.OpenChannel, error) {
 
-	nodeChans, err := s.chanStateDB.FetchOpenChannels(node)
+	channel, err := s.chanStateDB.FetchChannelByID(nil, chanID)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, channel := range nodeChans {
-		if chanID.IsChanPoint(&channel.FundingOutpoint) {
-			return channel, nil
-		}
+	// Verify the channel belongs to the expected peer.
+	if !channel.IdentityPub.IsEqual(node) {
+		return nil, fmt.Errorf("channel %v does not belong to "+
+			"node %x", chanID,
+			node.SerializeCompressed())
 	}
 
-	return nil, fmt.Errorf("unable to find channel")
+	return channel, nil
 }
 
 // getNodeAnnouncement fetches the current, fully signed node announcement.
