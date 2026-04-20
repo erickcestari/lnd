@@ -1544,6 +1544,18 @@ func (f *Manager) fundeeProcessOpenChannel(peer lnpeer.Peer,
 		return
 	}
 
+	// Enforce BOLT-02: push_msat MUST be <= 1000 * funding_satoshis.
+	if msg.PushAmount > lnwire.NewMSatFromSatoshis(msg.FundingAmount) {
+		f.failFundingFlow(
+			peer, cid,
+			lnwallet.ErrPushAmountTooLarge(
+				msg.PushAmount, msg.FundingAmount,
+			),
+		)
+
+		return
+	}
+
 	// Send the OpenChannel request to the ChannelAcceptor to determine
 	// whether this node will accept the channel.
 	chanReq := &chanacceptor.ChannelAcceptRequest{

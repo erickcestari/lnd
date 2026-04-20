@@ -3887,6 +3887,78 @@ func TestFundingManagerRejectPush(t *testing.T) {
 	)
 }
 
+// TestFundingManagerPushAmountExceedsCapacity asserts that the fundee
+// rejects an incoming OpenChannel whose push_msat exceeds
+// 1000 * funding_satoshis, as required by BOLT-02.
+func TestFundingManagerPushAmountExceedsCapacity(t *testing.T) {
+	t.Parallel()
+
+	alice, bob := setupFundingManagers(t)
+	t.Cleanup(func() {
+		tearDownFundingManagers(t, alice, bob)
+	})
+
+	// Kick off a normal funding workflow so Alice produces a
+	// well-formed OpenChannel message that we can then tamper with.
+	updateChan := make(chan *lnrpc.OpenStatusUpdate)
+	errChan := make(chan error, 1)
+	initReq := &InitFundingMsg{
+		Peer:            bob,
+		TargetPubkey:    bob.privKey.PubKey(),
+		ChainHash:       *fundingNetParams.GenesisHash,
+		LocalFundingAmt: 500000,
+		PushAmt:         lnwire.NewMSatFromSatoshis(10),
+		Private:         true,
+		Updates:         updateChan,
+		Err:             errChan,
+	}
+
+	alice.fundingMgr.InitFundingWorkflow(initReq)
+
+	// Intercept Alice's OpenChannel.
+	var aliceMsg lnwire.Message
+	select {
+	case aliceMsg = <-alice.msgChan:
+	case err := <-initReq.Err:
+		t.Fatalf("error init funding workflow: %v", err)
+	case <-time.After(time.Second * 5):
+		t.Fatalf("alice did not send OpenChannel message")
+	}
+
+	openChannelReq, ok := aliceMsg.(*lnwire.OpenChannel)
+	if !ok {
+		errorMsg, gotError := aliceMsg.(*lnwire.Error)
+		if gotError {
+			t.Fatalf("expected OpenChannel to be sent "+
+				"from alice, instead got error: %v",
+				errorMsg.Error())
+		}
+		t.Fatalf("expected OpenChannel to be sent from "+
+			"alice, instead got %T", aliceMsg)
+	}
+
+	// Overwrite the push amount so it strictly exceeds
+	// 1000 * funding_satoshis. Alice's own funding flow would never
+	// produce this on the wire, so we inject it manually to exercise
+	// Bob's spec-level bound check.
+	openChannelReq.PushAmount = lnwire.NewMSatFromSatoshis(
+		openChannelReq.FundingAmount,
+	) + 1
+
+	// Hand the tampered message to Bob.
+	bob.fundingMgr.ProcessFundingMsg(openChannelReq, alice)
+
+	// Bob should respond with an Error that carries the
+	// ErrPushAmountTooLarge message.
+	msg := assertFundingMsgSent(t, bob.msgChan, "Error")
+	err, ok := msg.(*lnwire.Error)
+	require.True(t, ok, "expected *lnwire.Error, got %T", msg)
+	require.ErrorContains(
+		t, err, "exceeds funding amount",
+		"expected ErrPushAmountTooLarge error, got \"%v\"", err.Error(),
+	)
+}
+
 // TestFundingManagerMaxConfs ensures that we don't accept a funding proposal
 // that proposes a MinAcceptDepth greater than the maximum number of
 // confirmations we're willing to accept.
