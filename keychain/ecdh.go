@@ -7,20 +7,42 @@ import (
 )
 
 // NewPubKeyECDH wraps the given key of the key ring so it adheres to the
-// SingleKeyECDH interface.
+// SingleKeyECDH interface. If the underlying ring is a SecretKeyRing the
+// private key is derived eagerly and cached so later ECDH calls stay
+// entirely in memory; otherwise (e.g. a remote signer) every call is
+// forwarded to the ring.
 func NewPubKeyECDH(keyDesc KeyDescriptor, ecdh ECDHRing) *PubKeyECDH {
-	return &PubKeyECDH{
+	p := &PubKeyECDH{
 		keyDesc: keyDesc,
 		ecdh:    ecdh,
 	}
+
+	if secretRing, ok := ecdh.(SecretKeyRing); ok {
+		if priv, err := secretRing.DerivePrivKey(keyDesc); err == nil {
+			p.cachedPriv = priv
+		}
+	}
+
+	return p
 }
 
 // PubKeyECDH is an implementation of the SingleKeyECDH interface. It wraps an
 // ECDH key ring so it can perform ECDH shared key generation against a single
 // abstracted away private key.
+//
+// On the local-keyring path each call to the underlying ECDHRing.ECDH opens a
+// read-write wallet DB transaction (to derive the private key), which forces a
+// bbolt meta-page write and an fdatasync per call. Since the wrapped key
+// descriptor never changes for the lifetime of a PubKeyECDH instance, the
+// private key is derived once at construction time and reused for every
+// subsequent ECDH operation. When the underlying ring cannot expose private
+// keys (e.g. a remote signer), cachedPriv stays nil and we forward each call
+// to the ring.
 type PubKeyECDH struct {
 	keyDesc KeyDescriptor
 	ecdh    ECDHRing
+
+	cachedPriv *btcec.PrivateKey
 }
 
 // PubKey returns the public key of the private key that is abstracted away by
@@ -42,7 +64,30 @@ func (p *PubKeyECDH) PubKey() *btcec.PublicKey {
 //
 // NOTE: This is part of the SingleKeyECDH interface.
 func (p *PubKeyECDH) ECDH(pubKey *btcec.PublicKey) ([32]byte, error) {
+	if p.cachedPriv != nil {
+		return ecdhFromPriv(p.cachedPriv, pubKey), nil
+	}
+
 	return p.ecdh.ECDH(p.keyDesc, pubKey)
+}
+
+// ecdhFromPriv computes sha256(k*P) for a known private key k and remote
+// public key P. It is the in-memory fast-path shared by PubKeyECDH (after
+// caching) and PrivKeyECDH.
+func ecdhFromPriv(priv *btcec.PrivateKey,
+	pub *btcec.PublicKey) [32]byte {
+
+	var (
+		pubJacobian btcec.JacobianPoint
+		s           btcec.JacobianPoint
+	)
+	pub.AsJacobian(&pubJacobian)
+
+	btcec.ScalarMultNonConst(&priv.Key, &pubJacobian, &s)
+	s.ToAffine()
+	sPubKey := btcec.NewPublicKey(&s.X, &s.Y)
+
+	return sha256.Sum256(sPubKey.SerializeCompressed())
 }
 
 // PrivKeyECDH is an implementation of the SingleKeyECDH in which we do have the
@@ -72,16 +117,7 @@ func (p *PrivKeyECDH) PubKey() *btcec.PublicKey {
 //
 // NOTE: This is part of the SingleKeyECDH interface.
 func (p *PrivKeyECDH) ECDH(pub *btcec.PublicKey) ([32]byte, error) {
-	var (
-		pubJacobian btcec.JacobianPoint
-		s           btcec.JacobianPoint
-	)
-	pub.AsJacobian(&pubJacobian)
-
-	btcec.ScalarMultNonConst(&p.PrivKey.Key, &pubJacobian, &s)
-	s.ToAffine()
-	sPubKey := btcec.NewPublicKey(&s.X, &s.Y)
-	return sha256.Sum256(sPubKey.SerializeCompressed()), nil
+	return ecdhFromPriv(p.PrivKey, pub), nil
 }
 
 var _ SingleKeyECDH = (*PubKeyECDH)(nil)
