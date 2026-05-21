@@ -218,6 +218,7 @@ func (c *ChannelGraphBootstrapper) SampleNodeAddrs(_ context.Context,
 				return nil
 			}
 
+			foundAddr := false
 			for _, nodeAddr := range node.Addrs() {
 				// If we haven't yet reached our limit, then
 				// we'll copy over the details of this node
@@ -256,9 +257,14 @@ func (c *ChannelGraphBootstrapper) SampleNodeAddrs(_ context.Context,
 					IdentityKey: nodePub,
 					Address:     nodeAddr,
 				})
+				foundAddr = true
 			}
 
-			return errFound
+			if foundAddr {
+				return errFound
+			}
+
+			return nil
 		}, func() {
 			clear(a)
 		})

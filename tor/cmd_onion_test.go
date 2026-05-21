@@ -86,6 +86,27 @@ func TestOnionFilePrivateKeyRejectsLegacyV2(t *testing.T) {
 	require.ErrorIs(t, err, ErrNonV3OnionKey)
 }
 
+// TestOnionFilePrivateKeyRejectsEncryptedLegacyV2 ensures the file-backed
+// store rejects an encrypted on-disk key that decrypts to a legacy v2
+// (RSA1024) blob, instead of forwarding the bytes to Tor.
+func TestOnionFilePrivateKeyRejectsEncryptedLegacyV2(t *testing.T) {
+	t.Parallel()
+
+	privateKeyPath := filepath.Join(t.TempDir(), "secret")
+
+	// Write a ciphertext-shaped payload (no v3 or v2 prefix) so the
+	// reader path falls through to the decrypter.
+	require.NoError(t, os.WriteFile(
+		privateKeyPath, []byte("encrypted-blob"), 0600,
+	))
+
+	onionFile := NewOnionFile(
+		privateKeyPath, 0600, true, legacyV2Decrypter{},
+	)
+	_, err := onionFile.PrivateKey()
+	require.ErrorIs(t, err, ErrNonV3OnionKey)
+}
+
 // TestPrepareKeyParam checks that the key param is created as expected.
 func TestPrepareKeyParam(t *testing.T) {
 	v3Key := []byte("ED25519-V3:hide_me_plz")
@@ -270,4 +291,19 @@ func (m MockEncrypter) EncryptPayloadToWriter(_ []byte, _ io.Writer) error {
 
 func (m MockEncrypter) DecryptPayloadFromReader(_ io.Reader) ([]byte, error) {
 	return anotherKey, nil
+}
+
+// legacyV2Decrypter is a stub encrypter whose decrypt step yields a
+// legacy v2 (RSA1024) payload, used to exercise the post-decrypt
+// validation branch.
+type legacyV2Decrypter struct{}
+
+func (legacyV2Decrypter) EncryptPayloadToWriter(_ []byte, _ io.Writer) error {
+	return nil
+}
+
+func (legacyV2Decrypter) DecryptPayloadFromReader(_ io.Reader) ([]byte,
+	error) {
+
+	return []byte("RSA1024:legacy-v2-key-bytes"), nil
 }

@@ -40,6 +40,7 @@ func (s *stubChannelGraph) ForEachNode(ctx context.Context,
 			return err
 		}
 	}
+
 	return nil
 }
 
@@ -74,6 +75,7 @@ func TestGraphBootstrapperSkipsV2Onion(t *testing.T) {
 		t.Helper()
 		priv, err := btcec.NewPrivateKey()
 		require.NoError(t, err)
+
 		return priv.PubKey()
 	}
 
@@ -101,7 +103,7 @@ func TestGraphBootstrapperSkipsV2Onion(t *testing.T) {
 	// Ask for more addresses than the graph holds so the bootstrapper
 	// drains it in a single pass.
 	got, err := bs.SampleNodeAddrs(
-		context.Background(), 10, map[autopilot.NodeID]struct{}{},
+		t.Context(), 10, map[autopilot.NodeID]struct{}{},
 	)
 	require.NoError(t, err)
 
